@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고정밀 영수증 OCR 대시보드</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-0: #f8f6f1;
+      --bg-1: #efe9dd;
+      --bg-2: #e8f0e5;
+      --ink: #1d232b;
+      --muted: #5f6a76;
+      --panel: #ffffff;
+      --line: #d4dbd9;
+      --accent: #0d7a5f;
+      --accent-2: #ea6a2a;
+      --warn: #bc3a2f;
+      --ok: #20744f;
+      --shadow: 0 12px 30px rgba(21, 27, 37, 0.11);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans KR", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 10%, rgba(13, 122, 95, 0.11), transparent 35%),
+        radial-gradient(circle at 90% 16%, rgba(234, 106, 42, 0.1), transparent 30%),
+        linear-gradient(150deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(1200px, 94vw);
+      margin: 32px auto 48px;
+      display: grid;
+      grid-template-columns: 370px 1fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .left {
+      position: sticky;
+      top: 16px;
+      height: fit-content;
+    }
+
+    .head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(130deg, #fbfcfb, #f3f8f5);
+    }
+
+    .title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .sub {
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .body {
+      padding: 16px 18px 20px;
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: #39424e;
+      font-weight: 600;
+    }
+
+    input[type="file"],
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid #c9d3d4;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      background: #fcfefd;
+    }
+
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .checks {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: #2f3843;
+    }
+
+    .checks label {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-main {
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), #0a6f96);
+    }
+
+    .btn-sub {
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent-2), #b7521f);
+    }
+
+    .progress {
+      height: 10px;
+      border-radius: 999px;
+      background: #edf2f3;
+      overflow: hidden;
+    }
+
+    .progress > div {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #0e8162, #1f9875, #ea6a2a);
+      transition: width 220ms ease;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #39424e;
+      line-height: 1.4;
+      background: #f5f9f8;
+      border: 1px dashed #c6d7d2;
+      border-radius: 10px;
+      padding: 10px;
+      max-height: 180px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .grid {
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fcfefd;
+      overflow: hidden;
+    }
+
+    .section h2 {
+      margin: 0;
+      font-size: 15px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f7fbf8;
+    }
+
+    .preview-list {
+      margin: 0;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .preview-item {
+      border: 1px solid #d8e0de;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      background: #f2f2f2;
+      display: block;
+    }
+
+    .preview-item div {
+      font-size: 12px;
+      padding: 7px 8px;
+      border-top: 1px solid #e4eae8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border: 1px solid #dce3e2;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f9f5;
+      font-weight: 700;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .good {
+      background: #daf5e8;
+      color: var(--ok);
+    }
+
+    .warn {
+      background: #fde8df;
+      color: var(--warn);
+    }
+
+    .candidate-board {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .candidate-card {
+      border: 1px solid #d7e0de;
+      border-radius: 10px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .candidate-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #4f5b67;
+    }
+
+    .candidate-meta strong {
+      color: #1f2730;
+      font-size: 13px;
+    }
+
+    .candidate-select {
+      width: 100%;
+      border: 1px solid #c8d3d3;
+      border-radius: 9px;
+      padding: 8px 10px;
+      background: #fbfdfd;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .empty-hint {
+      font-size: 13px;
+      color: #5c6975;
+      padding: 14px;
+      background: #f6faf8;
+      border: 1px dashed #ccd8d4;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .left {
+        position: static;
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.min.mjs" type="module"></script>
+  <script async src="https://docs.opencv.org/4.10.0/opencv.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="panel left">
+      <div class="head">
+        <h1 class="title">영수증 OCR 대시보드</h1>
+        <p class="sub">의료비 영수증 표 구조에 최적화된 고정밀 추출</p>
+      </div>
+      <div class="body">
+        <label>
+          파일 업로드 (PDF, JPG, PNG)
+          <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf" />
+        </label>
+
+        <label>
+          추출 대상 키워드 (쉼표 구분)
+          <textarea id="targets">진료과목,검사료,영상진단료,CT 진단료</textarea>
+        </label>
+
+        <label>
+          OCR 언어
+          <select id="langSelect">
+            <option value="kor+eng" selected>한국어 + 영어</option>
+            <option value="kor">한국어</option>
+            <option value="eng">영어</option>
+          </select>
+        </label>
+
+        <label>
+          업데이트할 엑셀 파일 선택 (.xlsx, .xls)
+          <input id="workbookInput" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
+        </label>
+
+        <div class="checks">
+          <label><input id="highPrecision" type="checkbox" checked /> 고정밀 모드(느리지만 정확도 강화)</label>
+          <label><input id="useOpenCV" type="checkbox" checked /> OpenCV 전처리(적응형 이진화)</label>
+        </div>
+
+        <button id="extractBtn" class="btn-main">OCR 추출 시작</button>
+        <button id="exportBtn" class="btn-sub" disabled>엑셀 시트 업데이트 저장</button>
+
+        <div class="progress"><div id="progressBar"></div></div>
+        <div id="statusLog" class="status">대기 중</div>
+      </div>
+    </aside>
+
+    <main class="panel grid">
+      <section class="section">
+        <h2>업로드 미리보기</h2>
+        <div id="previewList" class="preview-list"></div>
+      </section>
+
+      <section class="section">
+        <h2>추출 결과</h2>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>파일</th>
+                <th>키워드</th>
+                <th>추정 금액</th>
+                <th>신뢰도</th>
+                <th>매칭 라인</th>
+                <th>추출 시각</th>
+              </tr>
+            </thead>
+            <tbody id="resultBody">
+              <tr><td colspan="6" style="text-align:center;color:#667;">아직 추출된 데이터가 없습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>키워드별 숫자 후보 선택</h2>
+        <div id="candidateBoard" class="candidate-board">
+          <div class="empty-hint">OCR 실행 후 키워드별 숫자 후보가 표시됩니다.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.min.mjs";
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.3.136/build/pdf.worker.min.mjs";
+
+    const fileInput = document.getElementById("fileInput");
+    const workbookInput = document.getElementById("workbookInput");
+    const targetsInput = document.getElementById("targets");
+    const langSelect = document.getElementById("langSelect");
+    const highPrecision = document.getElementById("highPrecision");
+    const useOpenCV = document.getElementById("useOpenCV");
+    const extractBtn = document.getElementById("extractBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const progressBar = document.getElementById("progressBar");
+    const statusLog = document.getElementById("statusLog");
+    const previewList = document.getElementById("previewList");
+    const resultBody = document.getElementById("resultBody");
+    const candidateBoard = document.getElementById("candidateBoard");
+
+    /** @type {File[]} */
+    let selectedFiles = [];
+    /** @type {Array<{fileName:string,target:string,value:string,line:string,confidence:number,ts:string}>} */
+    let extractedRows = [];
+    /** @type {Array<{id:string,fileName:string,target:string,ts:string,candidates:Array<{value:string,line:string,confidence:number,score:number}>,selectedIndex:number}>} */
+    let candidateGroups = [];
+
+    function log(message) {
+      const time = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+      statusLog.textContent = `[${time}] ${message}\n` + statusLog.textContent;
+    }
+
+    function setProgress(percent) {
+      progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    }
+
+    function formatMoney(raw) {
+      if (!raw) return "";
+      const num = Number(String(raw).replace(/[^\d]/g, ""));
+      if (!Number.isFinite(num) || num <= 0) return "";
+      return num.toLocaleString("ko-KR");
+    }
+
+    function parseTargets(value) {
+      return value
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+
+    function excelTextWidth(value) {
+      const text = String(value ?? "");
+      let width = 0;
+      for (const ch of text) {
+        width += ch.charCodeAt(0) > 255 ? 2 : 1;
+      }
+      return width;
+    }
+
+    function autoFitWorksheetColumns(rows, headers) {
+      const cols = headers.map((header) => {
+        const maxDataWidth = rows.reduce((max, row) => {
+          const cell = row[header] ?? "";
+          return Math.max(max, excelTextWidth(cell));
+        }, excelTextWidth(header));
+        return { wch: Math.min(80, Math.max(10, maxDataWidth + 2)) };
+      });
+      return cols;
+    }
+
+    function uniqueSheetName(workbook, baseName) {
+      const maxLen = 31;
+      const seed = baseName.slice(0, maxLen);
+      if (!workbook.SheetNames.includes(seed)) return seed;
+
+      let idx = 2;
+      while (idx < 999) {
+        const suffix = `_${idx}`;
+        const name = `${seed.slice(0, maxLen - suffix.length)}${suffix}`;
+        if (!workbook.SheetNames.includes(name)) return name;
+        idx += 1;
+      }
+      return `${seed.slice(0, 27)}_${Date.now().toString().slice(-3)}`;
+    }
+
+    function normalizeKorean(s) {
+      return (s || "")
+        .replace(/[\s\-_/|·•.,:;()\[\]{}]/g, "")
+        .toLowerCase();
+    }
+
+    function diceCoefficient(a, b) {
+      if (!a || !b) return 0;
+      if (a === b) return 1;
+      if (a.length < 2 || b.length < 2) return 0;
+      const toBigrams = (x) => {
+        const arr = [];
+        for (let i = 0; i < x.length - 1; i += 1) arr.push(x.slice(i, i + 2));
+        return arr;
+      };
+      const aPairs = toBigrams(a);
+      const bPairs = toBigrams(b);
+      const aMap = new Map();
+      aPairs.forEach((p) => aMap.set(p, (aMap.get(p) || 0) + 1));
+      let overlap = 0;
+      bPairs.forEach((p) => {
+        const c = aMap.get(p) || 0;
+        if (c > 0) {
+          aMap.set(p, c - 1);
+          overlap += 1;
+        }
+      });
+      return (2 * overlap) / (aPairs.length + bPairs.length);
+    }
+
+    function pickBestAmount(line) {
+      const nums = (line.match(/\d{1,3}(?:,\d{3})+|\d{2,}/g) || [])
+        .map((n) => Number(n.replace(/,/g, "")))
+        .filter(Number.isFinite);
+      if (!nums.length) return "";
+      const candidate = nums.reduce((a, b) => (b > a ? b : a), nums[0]);
+      return formatMoney(String(candidate));
+    }
+
+    function extractAmountsFromLine(line) {
+      const nums = (String(line || "").match(/\d{1,3}(?:,\d{3})+|\d{2,}/g) || [])
+        .map((n) => formatMoney(n))
+        .filter(Boolean);
+      return Array.from(new Set(nums));
+    }
+
+    function shortenText(s, max = 74) {
+      const text = String(s || "");
+      if (text.length <= max) return text;
+      return `${text.slice(0, max)}...`;
+    }
+
+    function findTargetCandidates(target, lines) {
+      const normTarget = normalizeKorean(target);
+      const rawCandidates = [];
+
+      for (const item of lines) {
+        const lineText = item.text;
+        const normLine = normalizeKorean(lineText);
+        if (!normLine) continue;
+
+        const includesBonus = normLine.includes(normTarget) ? 0.46 : 0;
+        const sim = diceCoefficient(normTarget, normLine);
+        const confidenceScore = Math.min(1, Math.max(0, item.confidence / 100));
+        const linkScore = includesBonus + sim * 0.78 + confidenceScore * 0.22;
+        if (linkScore < 0.18) continue;
+
+        const amounts = extractAmountsFromLine(lineText);
+        if (!amounts.length) continue;
+
+        for (const value of amounts) {
+          rawCandidates.push({
+            value,
+            line: lineText,
+            confidence: item.confidence,
+            score: linkScore,
+          });
+        }
+      }
+
+      const dedup = new Map();
+      for (const c of rawCandidates) {
+        const key = `${c.value}__${normalizeKorean(c.line)}`;
+        const prev = dedup.get(key);
+        if (!prev || c.score > prev.score) dedup.set(key, c);
+      }
+
+      const sorted = Array.from(dedup.values()).sort((a, b) => b.score - a.score || b.confidence - a.confidence);
+      if (sorted.length) return sorted.slice(0, 10);
+
+      const best = findTargetInLines(target, lines);
+      const fallback = pickBestAmount(best.line);
+      if (!fallback) return [];
+      return [{
+        value: fallback,
+        line: best.line,
+        confidence: best.confidence,
+        score: best.score,
+      }];
+    }
+
+    function syncExtractedRowsFromSelection() {
+      extractedRows = candidateGroups.map((group) => {
+        const selected = group.candidates[group.selectedIndex] || null;
+        return {
+          fileName: group.fileName,
+          target: group.target,
+          value: selected?.value || "",
+          line: selected?.line || "",
+          confidence: selected?.confidence || 0,
+          ts: group.ts,
+        };
+      });
+    }
+
+    function renderCandidateBoard() {
+      if (!candidateGroups.length) {
+        candidateBoard.innerHTML = "<div class='empty-hint'>OCR 실행 후 키워드별 숫자 후보가 표시됩니다.</div>";
+        return;
+      }
+
+      candidateBoard.innerHTML = candidateGroups
+        .map((group) => {
+          const options = [
+            `<option value='-1' ${group.selectedIndex < 0 ? "selected" : ""}>선택 안 함</option>`,
+            ...group.candidates.map((cand, idx) => {
+              const selectedAttr = idx === group.selectedIndex ? "selected" : "";
+              const label = `${cand.value}원 | 신뢰도 ${cand.confidence.toFixed(1)}% | ${shortenText(cand.line)}`;
+              return `<option value='${idx}' ${selectedAttr}>${escapeHtml(label)}</option>`;
+            }),
+          ].join("");
+
+          return `
+            <article class='candidate-card'>
+              <div class='candidate-meta'>
+                <strong>${escapeHtml(group.target)}</strong>
+                <span>${escapeHtml(group.fileName)}</span>
+                <span>후보 ${group.candidates.length}개</span>
+              </div>
+              <select class='candidate-select' data-group-id='${escapeHtml(group.id)}'>${options}</select>
+            </article>
+          `;
+        })
+        .join("");
+    }
+
+    function onCandidateChange(event) {
+      const targetEl = event.target;
+      if (!(targetEl instanceof HTMLSelectElement)) return;
+      const groupId = targetEl.dataset.groupId;
+      if (!groupId) return;
+
+      const group = candidateGroups.find((g) => g.id === groupId);
+      if (!group) return;
+
+      const idx = Number(targetEl.value);
+      group.selectedIndex = Number.isInteger(idx) ? idx : -1;
+      syncExtractedRowsFromSelection();
+      updateResultTable();
+      log(`선택 변경: ${group.fileName} / ${group.target}`);
+    }
+
+    function resetSelectionState() {
+      candidateGroups = [];
+      extractedRows = [];
+      renderCandidateBoard();
+      updateResultTable();
+      exportBtn.disabled = true;
+    }
+
+    function updateResultTable() {
+      if (!extractedRows.length) {
+        resultBody.innerHTML = "<tr><td colspan='6' style='text-align:center;color:#667;'>아직 추출된 데이터가 없습니다.</td></tr>";
+        return;
+      }
+      resultBody.innerHTML = extractedRows
+        .map((row) => {
+          const cls = row.confidence >= 70 ? "good" : "warn";
+          const score = Number.isFinite(row.confidence) ? row.confidence.toFixed(1) : "0.0";
+          return `
+            <tr>
+              <td>${escapeHtml(row.fileName)}</td>
+              <td>${escapeHtml(row.target)}</td>
+              <td>${escapeHtml(row.value || "미검출")}</td>
+              <td><span class="badge ${cls}">${score}%</span></td>
+              <td>${escapeHtml(row.line || "-")}</td>
+              <td>${escapeHtml(row.ts)}</td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    async function fileToImageBitmap(file) {
+      const blobUrl = URL.createObjectURL(file);
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const el = new Image();
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+          el.src = blobUrl;
+        });
+        return img;
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    }
+
+    function imageToCanvas(img, scale = 2) {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.floor(img.width * scale));
+      canvas.height = Math.max(1, Math.floor(img.height * scale));
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas;
+    }
+
+    function basicEnhanceCanvas(srcCanvas) {
+      const canvas = document.createElement("canvas");
+      canvas.width = srcCanvas.width;
+      canvas.height = srcCanvas.height;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(srcCanvas, 0, 0);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = img.data;
+
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i];
+        const g = d[i + 1];
+        const b = d[i + 2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        const boosted = Math.min(255, Math.max(0, (gray - 128) * 1.75 + 128));
+        d[i] = boosted;
+        d[i + 1] = boosted;
+        d[i + 2] = boosted;
+      }
+
+      ctx.putImageData(img, 0, 0);
+      return canvas;
+    }
+
+    function openCvReady() {
+      return typeof window.cv !== "undefined" && typeof window.cv.Mat === "function";
+    }
+
+    function opencvEnhanceCanvas(srcCanvas) {
+      if (!openCvReady()) return null;
+      let src;
+      let gray;
+      let denoise;
+      let binary;
+      let kernel;
+      let morphed;
+      try {
+        src = window.cv.imread(srcCanvas);
+        gray = new window.cv.Mat();
+        denoise = new window.cv.Mat();
+        binary = new window.cv.Mat();
+        morphed = new window.cv.Mat();
+        window.cv.cvtColor(src, gray, window.cv.COLOR_RGBA2GRAY, 0);
+        window.cv.GaussianBlur(gray, denoise, new window.cv.Size(3, 3), 0, 0, window.cv.BORDER_DEFAULT);
+        window.cv.adaptiveThreshold(
+          denoise,
+          binary,
+          255,
+          window.cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+          window.cv.THRESH_BINARY,
+          25,
+          12,
+        );
+        kernel = window.cv.getStructuringElement(window.cv.MORPH_RECT, new window.cv.Size(2, 2));
+        window.cv.morphologyEx(binary, morphed, window.cv.MORPH_CLOSE, kernel);
+
+        const out = document.createElement("canvas");
+        out.width = srcCanvas.width;
+        out.height = srcCanvas.height;
+        window.cv.imshow(out, morphed);
+        return out;
+      } catch (e) {
+        log(`OpenCV 전처리 실패: ${e?.message || e}`);
+        return null;
+      } finally {
+        src?.delete();
+        gray?.delete();
+        denoise?.delete();
+        binary?.delete();
+        kernel?.delete();
+        morphed?.delete();
+      }
+    }
+
+    async function fileToCanvases(file, scale) {
+      const canvases = [];
+      if (/pdf$/i.test(file.name)) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+        for (let p = 1; p <= pdf.numPages; p += 1) {
+          const page = await pdf.getPage(p);
+          const viewport = page.getViewport({ scale });
+          const c = document.createElement("canvas");
+          c.width = Math.ceil(viewport.width);
+          c.height = Math.ceil(viewport.height);
+          const ctx = c.getContext("2d", { willReadFrequently: true });
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          canvases.push(c);
+        }
+      } else {
+        const img = await fileToImageBitmap(file);
+        canvases.push(imageToCanvas(img, scale));
+      }
+      return canvases;
+    }
+
+    async function runOcrOnCanvas(worker, canvas, psm) {
+      await worker.setParameters({
+        tessedit_pageseg_mode: String(psm),
+        user_defined_dpi: "300",
+        preserve_interword_spaces: "1",
+      });
+      const { data } = await worker.recognize(canvas);
+      return data;
+    }
+
+    function extractLines(data) {
+      const lines = data?.lines || [];
+      if (lines.length) {
+        return lines
+          .map((line) => ({
+            text: String(line.text || "").trim(),
+            confidence: Number(line.confidence || 0),
+          }))
+          .filter((line) => line.text.length > 0);
+      }
+      return String(data?.text || "")
+        .split(/\r?\n/)
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((text) => ({ text, confidence: Number(data?.confidence || 0) }));
+    }
+
+    function mergeLineCandidates(...lineGroups) {
+      const merged = [];
+      for (const lines of lineGroups) {
+        for (const line of lines) {
+          const key = normalizeKorean(line.text);
+          if (!key) continue;
+          const existing = merged.find((m) => normalizeKorean(m.text) === key);
+          if (!existing) {
+            merged.push(line);
+          } else if (line.confidence > existing.confidence) {
+            existing.text = line.text;
+            existing.confidence = line.confidence;
+          }
+        }
+      }
+      return merged;
+    }
+
+    function findTargetInLines(target, lines) {
+      const normTarget = normalizeKorean(target);
+      let best = { score: 0, line: "", confidence: 0 };
+
+      for (const item of lines) {
+        const lineText = item.text;
+        const normLine = normalizeKorean(lineText);
+        if (!normLine) continue;
+
+        const includesBonus = normLine.includes(normTarget) ? 0.42 : 0;
+        const sim = diceCoefficient(normTarget, normLine);
+        const confidenceScore = Math.min(1, Math.max(0, item.confidence / 100));
+        const score = includesBonus + sim * 0.78 + confidenceScore * 0.24;
+        if (score > best.score) {
+          best = { score, line: lineText, confidence: item.confidence };
+        }
+      }
+      return best;
+    }
+
+    function renderPreview(files) {
+      if (!files.length) {
+        previewList.innerHTML = "";
+        return;
+      }
+      previewList.innerHTML = files
+        .map((f) => {
+          const isImage = /^image\//.test(f.type);
+          const src = isImage ? URL.createObjectURL(f) : "";
+          const thumb = isImage
+            ? `<img src="${src}" alt="${escapeHtml(f.name)}" onload="URL.revokeObjectURL(this.src)" />`
+            : `<img alt="PDF" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='320' height='200'><rect width='100%' height='100%' fill='#eceff1'/><text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle' font-size='28' font-family='sans-serif' fill='#41545f'>PDF</text></svg>`) }" />`;
+          return `<div class="preview-item">${thumb}<div>${escapeHtml(f.name)}</div></div>`;
+        })
+        .join("");
+    }
+
+    async function exportExcel() {
+      if (!extractedRows.length) {
+        alert("먼저 OCR 추출을 실행해 주세요.");
+        return;
+      }
+
+      const workbookFile = workbookInput.files?.[0] || null;
+      if (!workbookFile) {
+        alert("업데이트할 기존 엑셀 파일을 선택해 주세요.");
+        return;
+      }
+
+      const fileBuffer = await workbookFile.arrayBuffer();
+      const wb = XLSX.read(fileBuffer, { type: "array" });
+      const now = new Date();
+      const baseSheetName = `OCR_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+      const sheetName = uniqueSheetName(wb, baseSheetName);
+
+      const rows = extractedRows.map((r) => ({
+        파일명: r.fileName,
+        키워드: r.target,
+        최종선택금액: r.value,
+        신뢰도: Number(r.confidence.toFixed(1)),
+        매칭라인: r.line,
+        추출시각: r.ts,
+      }));
+
+      const headers = ["파일명", "키워드", "최종선택금액", "신뢰도", "매칭라인", "추출시각"];
+      const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+      ws["!cols"] = autoFitWorksheetColumns(rows, headers);
+
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      const extMatch = workbookFile.name.match(/\.(xlsx|xls)$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : "xlsx";
+      const outputName = workbookFile.name.replace(/\.(xlsx|xls)$/i, `__updated.${ext}`);
+      XLSX.writeFile(wb, outputName);
+      log(`엑셀 업데이트 저장 완료: ${sheetName}`);
+    }
+
+    async function runExtraction() {
+      if (!selectedFiles.length) {
+        alert("파일을 먼저 업로드해 주세요.");
+        return;
+      }
+
+      const targets = parseTargets(targetsInput.value);
+      if (!targets.length) {
+        alert("추출할 키워드를 1개 이상 입력해 주세요.");
+        return;
+      }
+
+      extractBtn.disabled = true;
+      exportBtn.disabled = true;
+      extractedRows = [];
+      candidateGroups = [];
+      renderCandidateBoard();
+      updateResultTable();
+      setProgress(0);
+      statusLog.textContent = "";
+
+      const lang = langSelect.value;
+      const scale = highPrecision.checked ? 2.8 : 2.0;
+      const totalTasks = selectedFiles.length * (highPrecision.checked ? 2 : 1);
+      let done = 0;
+
+      const worker = await Tesseract.createWorker(lang, 1, {
+        logger: (m) => {
+          if (m.status === "recognizing text") {
+            const pct = Math.round((m.progress || 0) * 100);
+            setProgress(Math.min(99, pct));
+          }
+        },
+      });
+
+      try {
+        await worker.setParameters({
+          tessedit_char_blacklist: "~`^",
+          preserve_interword_spaces: "1",
+          user_defined_dpi: "300",
+        });
+
+        for (const file of selectedFiles) {
+          log(`처리 시작: ${file.name}`);
+          const pageCanvases = await fileToCanvases(file, scale);
+          const mergedLines = [];
+
+          for (let idx = 0; idx < pageCanvases.length; idx += 1) {
+            const baseCanvas = pageCanvases[idx];
+            const enhanced = basicEnhanceCanvas(baseCanvas);
+            const opencv = useOpenCV.checked ? opencvEnhanceCanvas(baseCanvas) : null;
+
+            const pass1 = await runOcrOnCanvas(worker, enhanced, 6);
+            const lines1 = extractLines(pass1);
+            mergedLines.push(...lines1);
+
+            if (highPrecision.checked) {
+              const targetCanvas = opencv || enhanced;
+              const pass2 = await runOcrOnCanvas(worker, targetCanvas, 11);
+              const lines2 = extractLines(pass2);
+              const mixed = mergeLineCandidates(lines1, lines2);
+              mergedLines.push(...mixed);
+              done += 2;
+            } else {
+              done += 1;
+            }
+
+            const completion = Math.round((done / totalTasks) * 100);
+            setProgress(completion);
+            log(`페이지 처리 완료: ${file.name} (${idx + 1}/${pageCanvases.length})`);
+          }
+
+          const finalLines = mergeLineCandidates(mergedLines);
+          const ts = new Date().toLocaleString("ko-KR", { hour12: false });
+
+          for (const target of targets) {
+            const candidates = findTargetCandidates(target, finalLines);
+            candidateGroups.push({
+              id: `${file.name}__${target}`,
+              fileName: file.name,
+              target,
+              ts,
+              candidates,
+              selectedIndex: candidates.length ? 0 : -1,
+            });
+          }
+          log(`키워드 후보 매핑 완료: ${file.name}`);
+        }
+
+        syncExtractedRowsFromSelection();
+        renderCandidateBoard();
+        updateResultTable();
+        exportBtn.disabled = extractedRows.length === 0;
+        setProgress(100);
+        log("모든 파일 OCR 추출 완료");
+      } catch (e) {
+        console.error(e);
+        log(`오류 발생: ${e?.message || e}`);
+        alert(`OCR 처리 중 오류가 발생했습니다.\n${e?.message || e}`);
+      } finally {
+        await worker.terminate();
+        extractBtn.disabled = false;
+      }
+    }
+
+    fileInput.addEventListener("change", () => {
+      selectedFiles = Array.from(fileInput.files || []);
+      renderPreview(selectedFiles);
+      resetSelectionState();
+      log(`파일 선택: ${selectedFiles.length}개`);
+    });
+
+    workbookInput.addEventListener("change", () => {
+      const wb = workbookInput.files?.[0];
+      if (wb) {
+        log(`엑셀 파일 선택: ${wb.name}`);
+      }
+    });
+
+    extractBtn.addEventListener("click", runExtraction);
+    exportBtn.addEventListener("click", exportExcel);
+    candidateBoard.addEventListener("change", onCandidateChange);
+
+    setTimeout(() => {
+      if (!openCvReady()) {
+        log("OpenCV 로딩 지연: 네트워크 상태에 따라 기본 전처리로 동작할 수 있습니다.");
+      } else {
+        log("OpenCV 로딩 완료");
+      }
+    }, 2500);
+  </script>
+</body>
+</html>
